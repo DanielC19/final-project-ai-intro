@@ -1,0 +1,4 @@
+*.pyc
+.venv/
+
+vehiculos_accidentes_limpio.csv
