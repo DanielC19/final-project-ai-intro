@@ -3,6 +3,7 @@
 > **Autores:** Miguel Ángel Cano Salinas (stufonn-cell)
 >              Daniel Correa - (DanielC19)
 >              Santiago Acevedo - (santiago2948)
+>              Andrés Toro
 > **Curso:** Introducción a la Inteligencia Artificial ·
 > **Fecha:** Noviembre de 2026
 
