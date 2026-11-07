@@ -35,7 +35,7 @@ ARTIFACTS = Path(__file__).parent / "artifacts"
 TIPOS_PESADOS = ["CAMION", "TRACTOCAMION", "VOLQUETA", "BUS", "MICROBUS", "BUSETA"]
 
 NOMBRES_MODELOS = {
-    "baseline_prevalencia": "Línea base (prevalencia)",
+    "baseline_prevalencia": "Línea base de prevalencia",
     "logistica_base": "Regresión logística",
     "logistica_interacciones": "Logística + interacciones",
     "random_forest": "Random Forest",
@@ -81,11 +81,12 @@ def estilo_figura(fig: go.Figure, altura: int = 420) -> go.Figure:
 # Secciones del tablero
 # ---------------------------------------------------------------------------
 def seccion_resumen(resumen: dict) -> None:
-    st.title("🚦 Gravedad de siniestros viales en Colombia")
+    st.title("Gravedad de siniestros viales en Colombia")
     st.caption(
         "Vehículos involucrados en accidentes de tránsito reportados bajo la "
-        "Ley 2251 de 2022 (RUNT / datos.gov.co). El modelo prioriza registros "
-        "ya reportados según su probabilidad de corresponder a un siniestro fatal."
+        "Ley 2251 de 2022 ante el RUNT y publicados en datos.gov.co. El modelo "
+        "prioriza registros ya reportados según su probabilidad de corresponder "
+        "a un siniestro fatal."
     )
 
     test_metrics = resumen["metricas_test_2026"]
@@ -95,10 +96,10 @@ def seccion_resumen(resumen: dict) -> None:
         "Modelo final",
         NOMBRES_MODELOS.get(resumen["mejor_modelo"], resumen["mejor_modelo"]),
     )
-    col3.metric("Average Precision (2026)", f"{test_metrics['average_precision']:.3f}")
-    col4.metric("ROC AUC (2026)", f"{test_metrics['roc_auc']:.3f}")
+    col3.metric("Average Precision 2026", f"{test_metrics['average_precision']:.3f}")
+    col4.metric("ROC AUC 2026", f"{test_metrics['roc_auc']:.3f}")
     col5.metric(
-        "Recall de fatales (2026)", f"{test_metrics['recall_muertes']:.1%}"
+        "Recall de fatales 2026", f"{test_metrics['recall_muertes']:.1%}"
     )
 
     st.divider()
@@ -113,11 +114,12 @@ def seccion_resumen(resumen: dict) -> None:
               **CON MUERTOS**. Identificarlos a tiempo permite priorizar
               investigación y recursos.
             - **Enfoque**: clasificación binaria con separación temporal estricta
-              (entrena hasta 2024, calibra y fija umbral en 2025, evalúa en 2026)
+              — entrena hasta 2024, calibra y fija umbral en 2025, evalúa en 2026 —
               y clustering descriptivo de perfiles territorio × tipo de vehículo.
             - **Decisión operacional**: el umbral de alerta se elige por costo
-              esperado (FN = {resumen['costo_falso_negativo']:.0f} × FP) con una
-              capacidad máxima de alertas del
+              esperado, donde un falso negativo cuesta
+              {resumen['costo_falso_negativo']:.0f} veces un falso positivo, con
+              una capacidad máxima de alertas del
               {resumen['capacidad_maxima_alertas_validacion']:.0%}.
             """
         )
@@ -128,9 +130,9 @@ def seccion_resumen(resumen: dict) -> None:
             | | |
             |---|---|
             | Unidad de análisis | {resumen['unidad_analisis']} |
-            | Entrenamiento | {resumen['n_train']:,} registros (2022–2024) |
-            | Validación | {resumen['n_valid']:,} registros (2025) |
-            | Prueba final | {resumen['n_test']:,} registros (2026) |
+            | Entrenamiento | {resumen['n_train']:,} registros · 2022–2024 |
+            | Validación | {resumen['n_valid']:,} registros · 2025 |
+            | Prueba final | {resumen['n_test']:,} registros · 2026 |
             | Calibración | {resumen['calibracion'].split('_')[0]} |
             | Umbral de alerta | {resumen['umbral_mejor_modelo']:.3f} |
             """
@@ -139,16 +141,15 @@ def seccion_resumen(resumen: dict) -> None:
     st.info(
         "La fuente actual no trae un identificador oficial de accidente, por lo "
         "que la unidad es el **registro de vehículo involucrado**: el score indica "
-        "gravedad reportada, no probabilidad de que ocurra un accidente.",
-        icon="ℹ️",
+        "gravedad reportada, no probabilidad de que ocurra un accidente."
     )
 
 
 def seccion_datos() -> None:
-    st.header("📊 Datos y análisis exploratorio")
+    st.header("Datos y análisis exploratorio")
     st.caption(
-        "Agregados calculados en el notebook sobre el CSV limpio "
-        "(450 mil registros, 2022–2026)."
+        "Agregados calculados en el notebook sobre el CSV limpio: "
+        "450 mil registros entre 2022 y 2026."
     )
 
     gravedad = cargar_csv("eda_gravedad.csv")
@@ -221,16 +222,16 @@ def seccion_datos() -> None:
 
     st.markdown(
         """
-        **Lecturas rápidas**: la motocicleta domina el volumen de registros; la
-        clase fatal es minoritaria (~5%), lo que justifica métricas orientadas a
-        desbalance (Average Precision, recall de la clase fatal) en lugar de
-        exactitud simple.
+        **Lecturas rápidas**: la motocicleta domina el volumen de registros y la
+        clase fatal ronda el 5%, lo que justifica métricas orientadas al
+        desbalance, como Average Precision y recall de la clase fatal, en lugar
+        de exactitud simple.
         """
     )
 
 
 def seccion_metodologia(resumen: dict) -> None:
-    st.header("🧪 Metodología")
+    st.header("Metodología")
 
     pasos = [
         ("1 · Limpieza", "Normalización de texto, fechas y edades; trazabilidad con hash por registro."),
@@ -257,7 +258,7 @@ def seccion_metodologia(resumen: dict) -> None:
                 )
 
     st.divider()
-    st.subheader("Búsqueda de hiperparámetros (validación temporal)")
+    st.subheader("Búsqueda de hiperparámetros con validación temporal")
     tuning = cargar_csv("tuning_resumen.csv")
     tuning["familia"] = tuning["familia"].map(NOMBRES_MODELOS).fillna(tuning["familia"])
     fig = px.strip(
@@ -267,7 +268,7 @@ def seccion_metodologia(resumen: dict) -> None:
         color="familia",
         hover_data=["candidato", "mean_recall"],
         title="Average Precision medio por candidato y familia",
-        labels={"mean_average_precision": "AP medio (validaciones históricas)", "familia": ""},
+        labels={"mean_average_precision": "AP medio en validaciones históricas", "familia": ""},
         color_discrete_sequence=PALETA,
     )
     st.plotly_chart(estilo_figura(fig, 400), use_container_width=True)
@@ -281,7 +282,7 @@ def seccion_metodologia(resumen: dict) -> None:
         y="average_precision",
         color="modelo",
         markers=True,
-        title="Average Precision por año de validación (rolling-origin)",
+        title="Average Precision por año de validación, esquema rolling-origin",
         labels={"validacion": "Año de validación", "average_precision": "Average Precision", "modelo": ""},
         color_discrete_sequence=PALETA,
     )
@@ -298,7 +299,7 @@ def seccion_metodologia(resumen: dict) -> None:
 
 
 def seccion_resultados(resumen: dict) -> None:
-    st.header("📈 Resultados del modelo")
+    st.header("Resultados del modelo")
 
     benchmark = cargar_csv("metricas_benchmark.csv")
     columnas_test = {
@@ -313,7 +314,7 @@ def seccion_resultados(resumen: dict) -> None:
     }
     tabla = benchmark[list(columnas_test)].rename(columns=columnas_test)
     tabla["Modelo"] = tabla["Modelo"].map(NOMBRES_MODELOS).fillna(tabla["Modelo"])
-    st.subheader("Benchmark en la prueba 2026 (umbral fijado en 2025)")
+    st.subheader("Benchmark en la prueba 2026 con umbral fijado en 2025")
     st.dataframe(
         tabla.style.format(
             {col: "{:.3f}" for col in tabla.columns if col != "Modelo"}
@@ -431,19 +432,18 @@ def seccion_resultados(resumen: dict) -> None:
         st.warning(
             "La tasa de alertas observada en 2026 supera la capacidad definida en "
             "validación: hay indicios de *drift* y el umbral debería revisarse "
-            "antes de operar.",
-            icon="⚠️",
+            "antes de operar."
         )
 
 
 def seccion_territorio() -> None:
-    st.header("🗺️ Territorios y clusters")
+    st.header("Territorios y clusters")
 
     ranking = cargar_csv("ranking_territorial.csv")
     clusters = cargar_csv("perfiles_cluster.csv")
     detalle = cargar_csv("perfil_detalle_cluster.csv")
 
-    st.subheader("Priorización territorial (tasas suavizadas + IC 95%)")
+    st.subheader("Priorización territorial con tasas suavizadas e IC 95%")
     st.caption(
         "Solo territorios con al menos 30 registros. La tasa se suaviza hacia la "
         "media global para no priorizar municipios pequeños por azar; el score "
@@ -513,7 +513,7 @@ def seccion_territorio() -> None:
             size="unidades",
             color=muestra["cluster"].astype(str),
             hover_data=["DEPARTAMENTO_ACCIDENTE", "TIPO_VEHICULO"],
-            title="Perfiles (≥50 registros): antigüedad vs tasa fatal",
+            title="Perfiles con al menos 50 registros: antigüedad vs tasa fatal",
             labels={
                 "edad_mediana": "Antigüedad mediana del vehículo (años)",
                 "tasa_muertes": "Tasa fatal observada",
@@ -528,7 +528,7 @@ def seccion_territorio() -> None:
 
 
 def seccion_simulador(resumen: dict) -> None:
-    st.header("🔮 Simulador de scoring")
+    st.header("Simulador de scoring")
     st.caption(
         "Usa el modelo final calibrado exportado por el notebook. El score es la "
         "probabilidad de que un registro como el descrito corresponda a un "
@@ -565,7 +565,7 @@ def seccion_simulador(resumen: dict) -> None:
             st.markdown(
                 f"<div style='background:{CREMA};border-radius:8px;padding:10px;"
                 f"font-size:0.85rem;color:{AZUL_NOCHE};'>Año del escenario: "
-                f"<b>{opciones['anio_prueba']}</b> (el de la prueba final). "
+                f"<b>{opciones['anio_prueba']}</b>, el de la prueba final. "
                 f"Umbral de alerta: <b>{umbral:.3f}</b>.</div>",
                 unsafe_allow_html=True,
             )
@@ -603,9 +603,9 @@ def seccion_simulador(resumen: dict) -> None:
     with col1:
         st.metric("Probabilidad calibrada de siniestro fatal", f"{probabilidad:.1%}")
         if es_alerta:
-            st.error(f"🚨 ALERTA: score por encima del umbral ({umbral:.3f})")
+            st.error(f"ALERTA: score por encima del umbral {umbral:.3f}")
         else:
-            st.success(f"✅ Sin alerta: score por debajo del umbral ({umbral:.3f})")
+            st.success(f"Sin alerta: score por debajo del umbral {umbral:.3f}")
         st.caption(
             f"Prevalencia de referencia en la prueba 2026: "
             f"{resumen['prevalencia_muertes_test']:.1%}."
@@ -641,15 +641,13 @@ def seccion_simulador(resumen: dict) -> None:
 def main() -> None:
     st.set_page_config(
         page_title="Siniestralidad vial · Ley 2251",
-        page_icon="🚦",
         layout="wide",
     )
 
     if not ARTIFACTS.exists() or not (ARTIFACTS / "resumen.json").exists():
         st.error(
             "No se encontró la carpeta `artifacts/`. Ejecuta primero el notebook "
-            "`main.ipynb` de inicio a fin para generar los artefactos del modelo.",
-            icon="🚫",
+            "`main.ipynb` de inicio a fin para generar los artefactos del modelo."
         )
         st.stop()
 
@@ -657,7 +655,7 @@ def main() -> None:
 
     with st.sidebar:
         st.markdown(
-            f"<h2 style='color:{AZUL_NOCHE};margin-bottom:0;'>🚦 Siniestralidad vial</h2>"
+            f"<h2 style='color:{AZUL_NOCHE};margin-bottom:0;'>Siniestralidad vial</h2>"
             f"<p style='color:{NARANJA};font-weight:600;margin-top:2px;'>"
             f"Ley 2251 de 2022 · Colombia</p>",
             unsafe_allow_html=True,
@@ -675,7 +673,7 @@ def main() -> None:
         )
         st.divider()
         st.caption(
-            "Fuente: RUNT / datos.gov.co (6jmc-vaxk). "
+            "Fuente: RUNT en datos.gov.co, conjunto 6jmc-vaxk. "
             "Resultados trazables a `main.ipynb`; la app no reentrena modelos."
         )
 
