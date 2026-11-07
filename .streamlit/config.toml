@@ -1,0 +1,11 @@
+[theme]
+# Paleta del proyecto: "seguridad vial"
+# Azul noche #003049 · Rojo #D62828 · Naranja #F77F00 · Ámbar #FCBF49 · Crema #EAE2B7
+primaryColor = "#F77F00"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F3E8"
+textColor = "#1B2A33"
+font = "sans serif"
+
+[server]
+headless = true

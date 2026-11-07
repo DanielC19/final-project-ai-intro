@@ -1,0 +1,80 @@
+{
+  "n_registros_vehiculo": 450335,
+  "n_unidades_analisis": 450335,
+  "n_train": 348149,
+  "n_valid": 66891,
+  "n_test": 35295,
+  "unidad_analisis": "registro de vehículo",
+  "identificador_accidente_disponible": false,
+  "estrategia_accidente_id": "surrogate_registro_no_agrupable",
+  "prevalencia_muertes_test": 0.08624451055390282,
+  "mejor_modelo": "gradient_boosting",
+  "criterio_seleccion": "objetivo_operacional_media_validacion_rolling",
+  "modelos_benchmark": [
+    "logistica_base",
+    "logistica_interacciones",
+    "random_forest",
+    "gradient_boosting"
+  ],
+  "recall_minimo_tuning": 0.4,
+  "calibracion": "sigmoid_cv3_ajustada_solo_con_train",
+  "umbral_mejor_modelo": 0.049055369671745265,
+  "capacidad_maxima_alertas_validacion": 0.1,
+  "tasa_global_muertes": 0.05306938168252523,
+  "prior_strength_tasa_territorial": 20.0,
+  "territorios_reportados": 689,
+  "clusters_seleccionados": 5,
+  "nota": "Las tasas por cluster y territorio son descriptivas, no causales. El surrogate ACCIDENTE_ID no agrupa vehículos.",
+  "mejor_candidato_por_familia": [
+    {
+      "modelo": "logistica_base",
+      "candidato_seleccionado": "logistica_base_C2.0_peso5",
+      "parametros": "{'C': 2.0, 'class_weight': {0: 1, 1: 5}}"
+    },
+    {
+      "modelo": "logistica_interacciones",
+      "candidato_seleccionado": "logistica_interacciones_C0.5_peso5",
+      "parametros": "{'C': 0.5, 'class_weight': {0: 1, 1: 5}}"
+    },
+    {
+      "modelo": "random_forest",
+      "candidato_seleccionado": "random_forest_depth18_leaf20",
+      "parametros": "{'class_weight': 'balanced', 'max_depth': 18, 'max_features': 'sqrt', 'min_samples_leaf': 20, 'n_estimators': 80}"
+    },
+    {
+      "modelo": "gradient_boosting",
+      "candidato_seleccionado": "gradient_boosting_lr0.06_hojas31_balanced",
+      "parametros": "{'class_weight': 'balanced', 'l2_regularization': 1.0, 'learning_rate': 0.06, 'max_iter': 300, 'max_leaf_nodes': 31, 'min_samples_leaf': 40}"
+    }
+  ],
+  "metricas_test_2026": {
+    "roc_auc": 0.8074152708891341,
+    "average_precision": 0.2818070689019694,
+    "brier": 0.0799483962431956,
+    "balanced_accuracy": 0.6613125168301477,
+    "recall_muertes": 0.4168856767411301,
+    "precision_muertes": 0.2944998839637967,
+    "f1_muertes": 0.34516523867809057,
+    "alert_rate": 0.1220852812013033,
+    "false_positives": 3040.0,
+    "false_negatives": 1775.0,
+    "expected_cost": 0.33758322708598953,
+    "threshold": 0.049055369671745265
+  },
+  "metricas_valid_2025": {
+    "roc_auc": 0.8113552700301054,
+    "average_precision": 0.28855760780607287,
+    "brier": 0.06940740941106253,
+    "balanced_accuracy": 0.6685849375981963,
+    "recall_muertes": 0.40978348035284684,
+    "precision_muertes": 0.31258602232757304,
+    "f1_muertes": 0.3546456146438796,
+    "alert_rate": 0.09775605088875933,
+    "false_positives": 4495.0,
+    "false_negatives": 2944.0,
+    "expected_cost": 0.2872583755662197,
+    "threshold": 0.049055369671745265
+  },
+  "costo_falso_negativo": 5.0,
+  "costo_falso_positivo": 1.0
+}

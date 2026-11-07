@@ -1,0 +1,5 @@
+modelo,candidato_seleccionado,parametros
+logistica_base,logistica_base_C2.0_peso5,"{'C': 2.0, 'class_weight': {0: 1, 1: 5}}"
+logistica_interacciones,logistica_interacciones_C0.5_peso5,"{'C': 0.5, 'class_weight': {0: 1, 1: 5}}"
+random_forest,random_forest_depth18_leaf20,"{'class_weight': 'balanced', 'max_depth': 18, 'max_features': 'sqrt', 'min_samples_leaf': 20, 'n_estimators': 80}"
+gradient_boosting,gradient_boosting_lr0.06_hojas31_balanced,"{'class_weight': 'balanced', 'l2_regularization': 1.0, 'learning_rate': 0.06, 'max_iter': 300, 'max_leaf_nodes': 31, 'min_samples_leaf': 40}"
