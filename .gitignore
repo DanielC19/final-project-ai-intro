@@ -1,4 +1,6 @@
 *.pyc
+__pycache__/
 .venv/
+.claude/
 
 vehiculos_accidentes_limpio.csv
