@@ -530,6 +530,279 @@ def seccion_territorio() -> None:
     st.dataframe(clusters.round(4), use_container_width=True, hide_index=True)
 
 
+@st.cache_data(show_spinner=False)
+def resumen_departamentos(prior_strength: float, tasa_global: float) -> pd.DataFrame:
+    """Agrega registros, fatales y desempeño 2026 por departamento.
+
+    Usa `perfil_detalle_cluster.csv` porque cubre todos los registros (el CSV de
+    EDA por departamento solo trae los 15 con más volumen). La tasa se suaviza
+    hacia la media nacional con el mismo prior del ranking municipal.
+    """
+    detalle = cargar_csv("perfil_detalle_cluster.csv")
+    detalle = detalle.assign(fatales=detalle["unidades"] * detalle["tasa_muertes"])
+    deptos = (
+        detalle.groupby("DEPARTAMENTO_ACCIDENTE")[["unidades", "fatales"]]
+        .sum()
+        .reset_index()
+    )
+    deptos["fatales"] = deptos["fatales"].round().astype(int)
+    deptos["tasa_observada"] = deptos["fatales"] / deptos["unidades"]
+    deptos["tasa_suavizada"] = (
+        deptos["fatales"] + prior_strength * tasa_global
+    ) / (deptos["unidades"] + prior_strength)
+    deptos["puesto"] = deptos["tasa_suavizada"].rank(ascending=False, method="min").astype(int)
+
+    # Desempeño del modelo en la prueba 2026, por departamento
+    pred = cargar_csv("predicciones_test_2026.csv")
+    pred = pred.assign(fatal=(pred["GRAVEDAD_ACCIDENTE"] == "CON MUERTOS").astype(int))
+    pred["alerta_fatal"] = pred["alerta"] * pred["fatal"]
+    test = pred.groupby("DEPARTAMENTO_ACCIDENTE").agg(
+        registros_2026=("fatal", "size"),
+        fatales_2026=("fatal", "sum"),
+        alertas_2026=("alerta", "sum"),
+        alertas_correctas_2026=("alerta_fatal", "sum"),
+    ).reset_index()
+    deptos = deptos.merge(test, on="DEPARTAMENTO_ACCIDENTE", how="left")
+    return deptos.sort_values("puesto")
+
+
+def centro_departamento(geojson: dict, nombre: str) -> tuple[float, float]:
+    """Centro aproximado (lon, lat) del polígono más grande del departamento."""
+    for feature in geojson["features"]:
+        if feature["id"] != nombre:
+            continue
+        geometria = feature["geometry"]
+        poligonos = (
+            [geometria["coordinates"]] if geometria["type"] == "Polygon"
+            else geometria["coordinates"]
+        )
+        anillo = max((p[0] for p in poligonos), key=len)
+        lons = [punto[0] for punto in anillo]
+        lats = [punto[1] for punto in anillo]
+        return (min(lons) + max(lons)) / 2, (min(lats) + max(lats)) / 2
+    return -74.0, 4.6
+
+
+def tarjetas_html(tarjetas: list[tuple[str, str, str, str]]) -> str:
+    """Fila de tarjetas compactas: (título, valor, detalle, color del borde)."""
+    piezas = []
+    for titulo, valor, detalle, color in tarjetas:
+        piezas.append(
+            f"""<div style="flex:1 1 140px;background:{CREMA}55;border-radius:10px;
+                        padding:10px 14px;border-top:3px solid {color};">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.04em;
+                            color:{AZUL_NOCHE}AA;">{titulo}</div>
+                <div style="font-size:1.35rem;font-weight:700;color:{AZUL_NOCHE};
+                            line-height:1.25;">{valor}</div>
+                <div style="font-size:0.72rem;color:{AZUL_NOCHE}99;min-height:1em;">{detalle}</div>
+            </div>"""
+        )
+    return (
+        '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 6px 0;">'
+        + "".join(piezas)
+        + "</div>"
+    )
+
+
+def seccion_mapa(resumen: dict) -> None:
+    st.markdown(
+        f"<h1 style='text-align:center;color:{AZUL_NOCHE};margin-bottom:0;'>"
+        "Siniestralidad vial en Colombia</h1>"
+        f"<p style='text-align:center;color:{NARANJA};font-weight:600;margin-top:2px;'>"
+        "Registros de vehículos en siniestros 2022–2026, por departamento</p>",
+        unsafe_allow_html=True,
+    )
+
+    tasa_global = resumen["tasa_global_muertes"]
+    deptos = resumen_departamentos(resumen["prior_strength_tasa_territorial"], tasa_global)
+    geojson = cargar_json("colombia_departamentos.geojson")
+    nombres = deptos["DEPARTAMENTO_ACCIDENTE"].tolist()
+
+    metricas = {
+        "Tasa fatal suavizada": ("tasa_suavizada", ".0%"),
+        "Registros": ("unidades", "~s"),
+        "Registros fatales": ("fatales", "~s"),
+    }
+    control1, control2 = st.columns([3, 2], vertical_alignment="bottom")
+    with control1:
+        metrica = st.segmented_control(
+            "Colorear por", list(metricas), default="Tasa fatal suavizada",
+            key="mapa_metrica",
+        ) or "Tasa fatal suavizada"
+    with control2:
+        seleccionado = st.selectbox(
+            "Departamento (ordenados por tasa suavizada)",
+            nombres,
+            key="mapa_departamento",
+            format_func=str.title,
+        )
+    columna, formato = metricas[metrica]
+
+    # Tarjetas compactas del departamento seleccionado
+    fila = deptos.set_index("DEPARTAMENTO_ACCIDENTE").loc[seleccionado]
+    diferencia = (fila["tasa_suavizada"] - tasa_global) * 100
+    tarjetas = [
+        ("Departamento", seleccionado.title(), f"Puesto {int(fila['puesto'])} de {len(deptos)}", AZUL_NOCHE),
+        ("Registros", f"{fila['unidades']:,.0f}", "2022–2026", AMBAR),
+        ("Fatales", f"{fila['fatales']:,.0f}", "registros con muertos", ROJO),
+        ("Tasa suavizada", f"{fila['tasa_suavizada']:.1%}",
+         f"{diferencia:+.1f} pp vs. nacional ({tasa_global:.1%})",
+         ROJO if diferencia > 0 else AZUL_NOCHE),
+    ]
+    if pd.notna(fila["registros_2026"]) and fila["registros_2026"] > 0:
+        alertas = fila["alertas_2026"] / fila["registros_2026"]
+        detectados = (
+            f"{fila['alertas_correctas_2026'] / fila['fatales_2026']:.0%}"
+            if fila["fatales_2026"] else "—"
+        )
+        tarjetas += [
+            ("Alertas 2026", f"{alertas:.1%}", f"de {fila['registros_2026']:,.0f} registros", NARANJA),
+            ("Fatales detectados 2026", detectados, f"de {fila['fatales_2026']:,.0f} fatales", NARANJA),
+        ]
+    st.markdown(tarjetas_html(tarjetas), unsafe_allow_html=True)
+
+    # Mapa principal
+    lon, lat = centro_departamento(geojson, seleccionado)
+    fig = go.Figure(go.Choropleth(
+        geojson=geojson,
+        locations=deptos["DEPARTAMENTO_ACCIDENTE"],
+        z=deptos[columna],
+        colorscale=[[0, "#F7F3E8"], [0.25, AMBAR], [0.6, NARANJA], [1, ROJO]],
+        marker_line_color="white",
+        marker_line_width=0.8,
+        colorbar=dict(
+            title=dict(text=metrica, side="top"),
+            orientation="h",
+            x=0.5, xanchor="center",
+            y=0.0, yanchor="top",
+            len=0.45, thickness=12,
+            tickformat=formato,
+            outlinewidth=0,
+        ),
+        customdata=deptos[["unidades", "fatales", "tasa_suavizada", "puesto"]],
+        text=deptos["DEPARTAMENTO_ACCIDENTE"].str.title(),
+        hovertemplate="<b>%{text}</b><br>"
+                      "Registros: %{customdata[0]:,}<br>"
+                      "Fatales: %{customdata[1]:,}<br>"
+                      "Tasa suavizada: %{customdata[2]:.2%}<br>"
+                      "Puesto nacional: %{customdata[3]}<extra></extra>",
+    ))
+    # Departamentos sin registros, en gris
+    sin_datos = sorted({f["id"] for f in geojson["features"]} - set(nombres))
+    if sin_datos:
+        fig.add_trace(go.Choropleth(
+            geojson=geojson,
+            locations=sin_datos,
+            z=[0] * len(sin_datos),
+            colorscale=[[0, GRIS_REJILLA], [1, GRIS_REJILLA]],
+            showscale=False,
+            marker_line_color="white",
+            marker_line_width=0.8,
+            text=[n.title() for n in sin_datos],
+            hovertemplate="<b>%{text}</b><br>Sin registros en la fuente<extra></extra>",
+        ))
+    # Contorno y etiqueta del departamento seleccionado
+    fig.add_trace(go.Choropleth(
+        geojson=geojson,
+        locations=[seleccionado],
+        z=[1],
+        colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
+        showscale=False,
+        marker_line_color=AZUL_NOCHE,
+        marker_line_width=3.5,
+        hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scattergeo(
+        lon=[lon], lat=[lat],
+        mode="markers+text",
+        marker=dict(size=9, color=AZUL_NOCHE, line=dict(color="white", width=2)),
+        text=[f"<b>{seleccionado.title()}</b>"],
+        textposition="top center",
+        textfont=dict(
+            size=16, color=AZUL_NOCHE,
+            shadow="0 0 3px white, 0 0 3px white, 0 0 6px white",
+        ),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+    fig.update_geos(
+        fitbounds="locations",
+        visible=False,
+        projection_type="mercator",
+        bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_layout(
+        height=860,
+        margin=dict(l=0, r=0, t=0, b=40),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=AZUL_NOCHE),
+        hoverlabel=dict(bgcolor="white", font_size=13),
+        dragmode=False,
+    )
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    st.caption(
+        "La tasa suavizada acerca a la media nacional a los departamentos con pocos "
+        "registros, para no exagerar diferencias por azar. Son tasas descriptivas: "
+        "sin datos de tráfico no miden riesgo causal, y la calidad del reporte varía "
+        "entre territorios."
+        + (f" Sin registros en la fuente: {', '.join(sin_datos).title()}." if sin_datos else "")
+    )
+
+    # Detalle del departamento
+    st.divider()
+    st.subheader(f"Detalle de {seleccionado.title()}")
+    col1, col2 = st.columns(2)
+    with col1:
+        detalle = cargar_csv("perfil_detalle_cluster.csv")
+        tipos = detalle[detalle["DEPARTAMENTO_ACCIDENTE"] == seleccionado]
+        tipos = tipos.sort_values("unidades", ascending=False).head(8)
+        fig = go.Figure(go.Bar(
+            x=tipos["tasa_muertes"],
+            y=tipos["TIPO_VEHICULO"],
+            orientation="h",
+            marker_color=ROJO,
+            customdata=tipos[["unidades", "cluster"]],
+            hovertemplate="%{y}<br>Tasa fatal: %{x:.1%}<br>"
+                          "Registros: %{customdata[0]:,}<br>"
+                          "Cluster: %{customdata[1]}<extra></extra>",
+        ))
+        fig.add_vline(x=tasa_global, line_dash="dot", line_color=AZUL_NOCHE,
+                      annotation_text="Media nacional", annotation_position="top")
+        fig.update_layout(
+            title="Tasa fatal por tipo de vehículo (8 más frecuentes)",
+            xaxis_tickformat=".0%",
+            yaxis=dict(autorange="reversed"),
+        )
+        st.plotly_chart(estilo_figura(fig, 400), width="stretch")
+    with col2:
+        st.markdown("**Municipios con mayor prioridad**")
+        ranking = cargar_csv("ranking_territorial.csv")
+        municipios = ranking[
+            ranking["volumen_suficiente"]
+            & (ranking["DEPARTAMENTO_ACCIDENTE"] == seleccionado)
+        ].head(10)
+        if municipios.empty:
+            st.caption("Ningún municipio con volumen suficiente para el ranking.")
+        else:
+            st.dataframe(
+                municipios[[
+                    "ranking_operativo", "MUNICIPIO_ACCIDENTE", "unidades",
+                    "muertes", "tasa_suavizada",
+                ]],
+                column_config={
+                    "ranking_operativo": st.column_config.NumberColumn("Puesto nacional", format="%d"),
+                    "MUNICIPIO_ACCIDENTE": "Municipio",
+                    "unidades": st.column_config.NumberColumn("Registros", format="%d"),
+                    "muertes": st.column_config.NumberColumn("Fatales", format="%d"),
+                    "tasa_suavizada": st.column_config.ProgressColumn(
+                        "Tasa suavizada", format="percent", min_value=0, max_value=1,
+                    ),
+                },
+                hide_index=True,
+                width="stretch",
+            )
+
+
 def seccion_simulador(resumen: dict) -> None:
     st.header("Simulador de scoring")
     st.caption(
@@ -873,6 +1146,7 @@ def main() -> None:
                 "Metodología",
                 "Resultados",
                 "Territorios y clusters",
+                "Mapa de Colombia",
                 "Simulador",
                 "Agente de IA"
             ],
@@ -893,6 +1167,8 @@ def main() -> None:
         seccion_resultados(resumen)
     elif seccion == "Territorios y clusters":
         seccion_territorio()
+    elif seccion == "Mapa de Colombia":
+        seccion_mapa(resumen)
     elif seccion == "Agente de IA":
         seccion_agente()
     else:
