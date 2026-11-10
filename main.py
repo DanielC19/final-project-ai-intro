@@ -9,9 +9,12 @@ Ejecución local:
 """
 
 import json
+import os
 from pathlib import Path
+from unicodedata import normalize
 
 import joblib
+from openai import OpenAI, OpenAIError
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -637,6 +640,208 @@ def seccion_simulador(resumen: dict) -> None:
                           paper_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
 
+FUENTES_AGENTE = (
+    "resumen.json",
+    "metricas_benchmark.csv",
+    "eda_anio_gravedad.csv",
+    "eda_tipo_vehiculo.csv",
+    "eda_departamento.csv",
+    "eda_mes.csv",
+    "ranking_territorial.csv",
+    "perfiles_cluster.csv",
+)
+
+
+def consultar_tablero(fuente: str, departamento: str | None = None) -> str:
+    """Consulta los resultados del tablero sin modificar los datos."""
+
+    if fuente not in FUENTES_AGENTE:
+        return "Fuente no disponible."
+
+    if fuente == "resumen.json":
+        return json.dumps(cargar_json(fuente), ensure_ascii=False)
+
+    tabla = cargar_csv(fuente)
+
+    if fuente == "ranking_territorial.csv":
+        tabla = tabla[tabla["volumen_suficiente"]]
+
+        if departamento:
+            nombre = normalize("NFKD", departamento.strip().upper())
+            nombre = nombre.encode("ascii", "ignore").decode("ascii")
+            tabla = tabla[tabla["DEPARTAMENTO_ACCIDENTE"] == nombre]
+
+        tabla = tabla.head(15)
+
+    return tabla.to_json(orient="records", force_ascii=False)
+
+
+
+def responder_agente(cliente: OpenAI, mensajes: list[dict]) -> str:
+    herramientas = [
+        {
+            "type": "function",
+            "function": {
+                "name": "consultar_tablero",
+                "description": (
+                    "Consulta los archivos de resultados del tablero "
+                    "para responder preguntas sobre accidentes, "
+                    "metricas, territorios y clusters."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "fuente": {
+                            "type": "string",
+                            "enum": list(FUENTES_AGENTE),
+                            "description": "Archivo de resultados a consultar."
+                        },
+                        "departamento": {
+                            "type": ["string", "null"],
+                            "description": (
+                                "Departamento para filtrar el ranking "
+                                "territorial, o null si no aplica."
+                            )
+                        }
+                    },
+                    "required": ["fuente", "departamento"],
+                    "additionalProperties": False
+                }
+            }
+        }
+    ]
+
+    conversacion = [
+        {
+            "role": "system",
+            "content": (
+                "Eres un agente de inteligencia artificial integrado en un "
+                "tablero de siniestros viales de Colombia. "
+
+                "Tu tarea es responder preguntas utilizando los archivos "
+                "del proyecto mediante la herramienta consultar_tablero. "
+
+                "Cuando el usuario pregunte por m├®tricas, resultados, "
+                "accidentes, a├▒os, departamentos o rankings, debes consultar "
+                "primero los archivos correspondientes. "
+
+                "Selecciona t├║ mismo la fuente adecuada. "
+                "No le pidas al usuario nombres de archivos. "
+
+                "Para preguntas sobre recall, precision, F1, ROC AUC "
+                "o desempe├▒o del modelo, consulta primero resumen.json "
+                "y, si es necesario, metricas_benchmark.csv. "
+
+                "El proyecto incluye informaci├│n correspondiente a 2026. "
+                "No afirmes que los datos de ese a├▒o no est├ín disponibles "
+                "sin haber consultado los archivos. "
+
+                "Si el usuario no menciona un departamento, utiliza null. "
+
+                "Responde siempre en espa├▒ol, de manera clara y sencilla. "
+                "No inventes cifras. Si los archivos no contienen la "
+                "informaci├│n solicitada, expl├¡calo."
+            )
+        },
+        *mensajes
+    ]
+
+    for _ in range(4):
+        respuesta = cliente.chat.completions.create(
+            model="nvidia/nemotron-3.5-bolt-e4b",
+            messages=conversacion,
+            tools=herramientas,
+            tool_choice="auto",
+            temperature=1.0,
+            max_tokens=1500,
+        )
+
+        mensaje = respuesta.choices[0].message
+        conversacion.append(mensaje.model_dump(exclude_none=True))
+
+        if not mensaje.tool_calls:
+            return mensaje.content or "No se obtuvo una respuesta."
+
+        for llamada in mensaje.tool_calls:
+            if llamada.function.name != "consultar_tablero":
+                resultado = "Herramienta no disponible."
+            else:
+                try:
+                    argumentos = json.loads(llamada.function.arguments)
+                    resultado = consultar_tablero(
+                        fuente=argumentos["fuente"],
+                        departamento=argumentos.get("departamento"),
+                        )
+                    print(f"[AGENTE NVIDIA] Consultando archivo: {argumentos['fuente']}"),
+                except (ValueError, KeyError, TypeError) as error:
+                    resultado = f"Error al consultar los datos: {error}"
+
+            conversacion.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": llamada.id,
+                    "content": str(resultado)
+                }
+            )
+
+    return "No fue posible completar la consulta en este momento."
+
+
+
+def seccion_agente() -> None:
+    st.header("Agente de IA")
+    st.caption(
+        "Pregunta sobre los datos, las metricas "
+        "o el ranking territorial del tablero."
+    )
+
+    if not os.getenv("NVIDIA_API_KEY"):
+        st.info("Configura NVIDIA_API_KEY para activar el agente.")
+        return
+
+    mensajes = st.session_state.setdefault("mensajes_agente", [])
+
+    for mensaje in mensajes:
+        with st.chat_message(mensaje["role"]):
+            st.markdown(mensaje["content"])
+
+    pregunta = st.chat_input(
+        "¿Cuál fue el recall de fatales en 2026?",
+        max_chars=1000,
+    )
+
+    if not pregunta or not pregunta.strip():
+        return
+
+    usuario = {"role": "user", "content": pregunta.strip()}
+
+    with st.chat_message("user"):
+        st.markdown(usuario["content"])
+
+    with st.chat_message("assistant"):
+        try:
+            with st.spinner("Consultando el tablero..."):
+                with OpenAI(
+                    base_url="https://integrate.api.nvidia.com/v1",
+                    api_key=os.environ["NVIDIA_API_KEY"],
+                    timeout=60.0,
+                ) as cliente:
+                    respuesta = responder_agente(cliente, [*mensajes[-8:], usuario])
+        except (OpenAIError, OSError, ValueError, KeyError) as error:
+            st.error("No se pudo completar la consulta del agente.")
+            st.code(f"{type(error).__name__}: {error}")
+            return
+
+        if not respuesta:
+            st.error("El agente no devolvi├│ una respuesta.")
+            return
+
+        st.markdown(respuesta)
+
+    mensajes.extend([
+        usuario,
+        {"role": "assistant", "content": respuesta},
+    ])
 
 def main() -> None:
     st.set_page_config(
@@ -669,6 +874,7 @@ def main() -> None:
                 "Resultados",
                 "Territorios y clusters",
                 "Simulador",
+                "Agente de IA"
             ],
         )
         st.divider()
@@ -687,6 +893,8 @@ def main() -> None:
         seccion_resultados(resumen)
     elif seccion == "Territorios y clusters":
         seccion_territorio()
+    elif seccion == "Agente de IA":
+        seccion_agente()
     else:
         seccion_simulador(resumen)
 
