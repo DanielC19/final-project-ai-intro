@@ -87,7 +87,8 @@ Etapas:
    operacional por costo esperado — un falso negativo cuesta 5 veces un falso
    positivo — con alertas ≤ 10%.
 7. Clustering descriptivo y ranking territorial.
-8. Despliegue en Streamlit.
+8. Despliegue del tablero interactivo en Streamlit.
+9. Integración de un agente de inteligencia artificial mediante la API de NVIDIA, utilizando el modelo Nemotron 3.5 Bolt E4B para consultar las métricas, resultados y rankings territoriales del proyecto mediante preguntas en lenguaje natural.
 
 **Decisiones principales:** se comparan una regresión logística como referencia
 interpretable, un Random Forest como benchmark no lineal clásico y un
@@ -109,6 +110,7 @@ flowchart LR
     H --> J[Artefactos<br/>artifacts/]
     I --> J
     J --> K[App Streamlit<br/>main.py]
+    K --> L[Agente de IA]
 ```
 
 *Figura 1. Flujo metodológico: de los datos crudos a la aplicación.*
@@ -125,6 +127,7 @@ sequenceDiagram
     participant S as App Streamlit (main.py)
     participant A as Artefactos (artifacts/)
     participant M as Modelo calibrado (joblib)
+    participant IA as Agente NVIDIA
 
     U->>S: Abre el tablero / elige sección
     S->>A: Lee métricas, curvas y rankings en caché
@@ -135,6 +138,14 @@ sequenceDiagram
     S->>M: predict_proba(escenario)
     M-->>S: Probabilidad calibrada
     S-->>U: Score + alerta según umbral operacional
+    U->>S: Realiza una pregunta al agente
+    S->>IA: Envía la pregunta
+    IA-->>S: Solicita consultar_tablero()
+    S->>A: Consulta resultados del tablero
+    A-->>S: Devuelve datos
+    S->>IA: Envía resultados
+    IA-->>S: Genera respuesta
+    S-->>U: Muestra respuesta al usuario
 ```
 
 *Figura 2. Diagrama de secuencia del sistema en producción.*
@@ -193,6 +204,19 @@ streamlit run main.py
 El notebook no descarga nada: el CSV oficial ya está en el repositorio. Al
 ejecutarlo genera `vehiculos_accidentes_limpio.csv` y la carpeta `artifacts/`
 que alimenta la aplicación.
+
+**Agente de IA:** el tablero incluye un agente integrado mediante NVIDIA API, utilizando el modelo `nvidia/nemotron-3.5-bolt-e4b`. Este agente permite realizar preguntas en lenguaje natural sobre los resultados del proyecto y utiliza la función `consultar_tablero()` para acceder a los archivos disponibles en `artifacts/`.
+
+Para utilizarlo, se debe configurar la variable de entorno `NVIDIA_API_KEY` y ejecutar la aplicación con `python -m streamlit run main.py`. Después, se selecciona la sección **Agente de IA** en el menú lateral.
+
+El agente consulta los resultados existentes sin modificar los datos originales ni reentrenar el modelo predictivo.
+
+**Ejemplo de pregunta:**
+¿Cuál fue el recall de accidentes fatales en 2026?
+
+El agente consulta los archivos de `artifacts/` mediante la función `consultar_tablero()` y genera una respuesta basada en los resultados disponibles.
+
+**Nota:** Las respuestas dependen de los artefactos generados por el notebook. El agente no modifica los datos ni reentrena los modelos.
 
 **Estructura del repositorio:**
 
