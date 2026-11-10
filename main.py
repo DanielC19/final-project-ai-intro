@@ -737,6 +737,22 @@ def responder_agente(cliente: OpenAI, mensajes: list[dict]) -> str:
                 "sin haber consultado los archivos. "
 
                 "Si el usuario no menciona un departamento, utiliza null. "
+                "Si el usuario no menciona un departamento, utiliza null. "
+                "El archivo ranking_territorial.csv contiene registros por municipio. "
+                "Cada registro incluye DEPARTAMENTO_ACCIDENTE, MUNICIPIO_ACCIDENTE "
+                "y prioridad_score. "
+                
+                "Cuando el usuario pregunte por municipios, identifica los nombres "
+                "utilizando MUNICIPIO_ACCIDENTE y muestra también su departamento. "
+                
+                "Cuando pregunte por departamentos, no confundas los registros "
+                "municipales con un ranking departamental. "
+                
+                "Si el usuario solicita los cinco primeros municipios, utiliza "
+                "los registros con mayor prioridad_score. "
+                
+                "No omitas los nombres de los municipios cuando el usuario "
+                "los solicite. "
 
                 "Responde siempre en espa├▒ol, de manera clara y sencilla. "
                 "No inventes cifras. Si los archivos no contienen la "
