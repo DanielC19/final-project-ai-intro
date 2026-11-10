@@ -722,18 +722,18 @@ def responder_agente(cliente: OpenAI, mensajes: list[dict]) -> str:
                 "del proyecto mediante la herramienta consultar_tablero. "
 
                 "Cuando el usuario pregunte por m├®tricas, resultados, "
-                "accidentes, a├▒os, departamentos o rankings, debes consultar "
+                "accidentes, años, departamentos o rankings, debes consultar "
                 "primero los archivos correspondientes. "
 
-                "Selecciona t├║ mismo la fuente adecuada. "
+                "Selecciona tu mismo la fuente adecuada. "
                 "No le pidas al usuario nombres de archivos. "
 
                 "Para preguntas sobre recall, precision, F1, ROC AUC "
-                "o desempe├▒o del modelo, consulta primero resumen.json "
+                "o desempeño del modelo, consulta primero resumen.json "
                 "y, si es necesario, metricas_benchmark.csv. "
 
-                "El proyecto incluye informaci├│n correspondiente a 2026. "
-                "No afirmes que los datos de ese a├▒o no est├ín disponibles "
+                "El proyecto incluye informacion correspondiente a 2026. "
+                "No afirmes que los datos de ese año no estan disponibles "
                 "sin haber consultado los archivos. "
 
                 "Si el usuario no menciona un departamento, utiliza null. "
@@ -754,9 +754,9 @@ def responder_agente(cliente: OpenAI, mensajes: list[dict]) -> str:
                 "No omitas los nombres de los municipios cuando el usuario "
                 "los solicite. "
 
-                "Responde siempre en espa├▒ol, de manera clara y sencilla. "
+                "Responde siempre en español, de manera clara y sencilla. "
                 "No inventes cifras. Si los archivos no contienen la "
-                "informaci├│n solicitada, expl├¡calo."
+                "informacion solicitada, explicalo."
             )
         },
         *mensajes
