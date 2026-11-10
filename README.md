@@ -211,6 +211,13 @@ Para utilizarlo, se debe configurar la variable de entorno `NVIDIA_API_KEY` y ej
 
 El agente consulta los resultados existentes sin modificar los datos originales ni reentrenar el modelo predictivo.
 
+**Ejemplo de pregunta:**
+¿Cuál fue el recall de accidentes fatales en 2026?
+
+El agente consulta los archivos de `artifacts/` mediante la función `consultar_tablero()` y genera una respuesta basada en los resultados disponibles.
+
+**Nota:** Las respuestas dependen de los artefactos generados por el notebook. El agente no modifica los datos ni reentrena los modelos.
+
 **Estructura del repositorio:**
 
 ```
