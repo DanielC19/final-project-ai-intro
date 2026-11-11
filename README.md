@@ -83,7 +83,9 @@ Etapas:
 4. Tuning de hiperparámetros con cortes históricos 2022→2023 y 2023→2024,
    maximizando Average Precision sujeto a un recall mínimo del 40%.
 5. Selección de la familia ganadora por validación rolling-origin.
-6. Calibración sigmoid o isotónica, elegida por Brier en 2025, y umbral
+6. Calibración: se comparan variantes con y sin pesos de clase, sigmoid o
+   isotónica, con validación cruzada de filas mezcladas, y se elige por Brier
+   en 2025; luego, umbral
    operacional por costo esperado — un falso negativo cuesta 5 veces un falso
    positivo — con alertas ≤ 10%.
 7. Clustering descriptivo y ranking territorial.
@@ -161,19 +163,28 @@ ni calibrar, con umbral fijado en 2025:
 | Regresión logística | 0.808 | 0.283 | 0.110 | 0.447 | 0.297 | 13.0% |
 | Logística + interacciones | 0.809 | 0.283 | 0.109 | 0.450 | 0.295 | 13.2% |
 | Random Forest | 0.802 | 0.263 | 0.267 | 0.442 | 0.281 | 13.6% |
-| **Gradient Boosting — final calibrado** | **0.807** | **0.282** | **0.080** | **0.417** | **0.295** | **12.2%** |
+| **Gradient Boosting — final calibrado** | **0.807** | **0.282** | **0.069** | **0.417** | **0.295** | **12.2%** |
 
 Modelo final: **HistGradientBoosting con target encoding**, elegido por el mejor
 objetivo operacional medio en las validaciones rolling de 2023 a 2025 y calibrado
-con `sigmoid`, `cv=3` y `ensemble=False`. El umbral operacional de 0.049 se fijó
+con `sigmoid` sobre una validación cruzada de 3 folds con filas mezcladas y
+`ensemble=False`. El umbral operacional de 0.210 se fijó
 en 2025, donde logra 41% de recall con 9.8% de alertas, dentro de la capacidad.
 El clustering seleccionó k = 5 perfiles departamento × tipo de vehículo, y el
 ranking territorial prioriza municipios con tasas suavizadas e IC 95%.
 
 **Análisis corto:** todos los modelos triplican con creces la línea base. El
 gradient boosting ganó la selección temporal sin usar 2026 y es el único que
-combina ranking competitivo con probabilidades honestas: Brier 0.080 frente a
-0.110 de la logística. Las logísticas siguen siendo alternativas interpretables
+combina ranking competitivo con probabilidades honestas: Brier 0.069 frente a
+0.110 de la logística y 0.080 de la línea base (Brier Skill Score ≈ 0.14), con
+probabilidades que siguen la frecuencia real por deciles (ECE ≈ 0.006).
+
+**Nota de calibración:** el CSV oficial viene ordenado por año, así que una
+validación cruzada sin mezclar filas arma un fold por año. La primera versión
+calibraba así y comprimía todas las probabilidades entre 4% y 5% (Brier igual a
+la línea base). Con filas mezcladas el orden de los registros no cambia (mismo
+AUC, AP, recall y alertas) y las probabilidades quedan alineadas con lo observado;
+la tabla `artifacts/calibracion_candidatos.csv` compara todas las variantes en 2025. Las logísticas siguen siendo alternativas interpretables
 casi empatadas en AP, y el Random Forest quedó detrás en ranking y calibración.
 Limitaciones: la tasa de alertas en 2026 excede la capacidad definida en 2025, un
 indicio de *drift* que obliga a revisar el umbral antes de operar; no hay

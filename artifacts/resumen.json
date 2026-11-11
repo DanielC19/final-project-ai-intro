@@ -17,8 +17,8 @@
     "gradient_boosting"
   ],
   "recall_minimo_tuning": 0.4,
-  "calibracion": "sigmoid_cv3_ajustada_solo_con_train",
-  "umbral_mejor_modelo": 0.049055369671745265,
+  "calibracion": "sigmoid_con_pesos_ajustada_solo_con_train",
+  "umbral_mejor_modelo": 0.21035533863592448,
   "capacidad_maxima_alertas_validacion": 0.1,
   "tasa_global_muertes": 0.05306938168252523,
   "prior_strength_tasa_territorial": 20.0,
@@ -50,7 +50,7 @@
   "metricas_test_2026": {
     "roc_auc": 0.8074152708891341,
     "average_precision": 0.2818070689019694,
-    "brier": 0.0799483962431956,
+    "brier": 0.0693464701651271,
     "balanced_accuracy": 0.6613125168301477,
     "recall_muertes": 0.4168856767411301,
     "precision_muertes": 0.2944998839637967,
@@ -59,12 +59,12 @@
     "false_positives": 3040.0,
     "false_negatives": 1775.0,
     "expected_cost": 0.33758322708598953,
-    "threshold": 0.049055369671745265
+    "threshold": 0.21035533863592448
   },
   "metricas_valid_2025": {
     "roc_auc": 0.8113552700301054,
     "average_precision": 0.28855760780607287,
-    "brier": 0.06940740941106253,
+    "brier": 0.0602542100219046,
     "balanced_accuracy": 0.6685849375981963,
     "recall_muertes": 0.40978348035284684,
     "precision_muertes": 0.31258602232757304,
@@ -73,8 +73,10 @@
     "false_positives": 4495.0,
     "false_negatives": 2944.0,
     "expected_cost": 0.2872583755662197,
-    "threshold": 0.049055369671745265
+    "threshold": 0.21035533863592448
   },
   "costo_falso_negativo": 5.0,
-  "costo_falso_positivo": 1.0
+  "costo_falso_positivo": 1.0,
+  "pesos_clase_modelo_final": "con_pesos",
+  "calibracion_candidato": "con_pesos_sigmoid"
 }

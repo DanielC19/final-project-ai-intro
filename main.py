@@ -241,7 +241,7 @@ def seccion_metodologia(resumen: dict) -> None:
         ("2 · EDA", "Distribuciones, calidad del dato y definición del objetivo binario."),
         ("3 · Tuning temporal", "Cortes 2022→2023 y 2023→2024; objetivo: Average Precision con recall mínimo 40%."),
         ("4 · Selección", "Validación rolling-origin por familia; gana el mejor objetivo operacional medio."),
-        ("5 · Calibración", "Sigmoid vs isotónica ajustadas solo con train; se elige por Brier en 2025."),
+        ("5 · Calibración", "Con/sin pesos de clase × sigmoid/isotónica, CV con filas mezcladas; se elige por Brier en 2025."),
         ("6 · Evaluación 2026", "Prueba final intocada + umbral operacional por costo y capacidad de alertas."),
     ]
     for inicio in range(0, len(pasos), 3):
